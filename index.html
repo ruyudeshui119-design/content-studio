@@ -4681,6 +4681,22 @@ function initMultiIP() {
     const oldData = localStorage.getItem(OLD_STORE_KEY);
     if (oldData) localStorage.setItem(`ccs_data_${defaultIP.id}`, oldData);
   }
+  // 重建种子：若列表里没有郑燕则补建（原档案因浏览器本地存储按网址隔离丢失）
+  if (!ipList.find(ip => ip.name === '郑燕')) {
+    const zyId = 'ip_' + Date.now() + '_zy';
+    ipList.push({
+      id: zyId,
+      name: '郑燕',
+      emoji: '🎬',
+      platform: '抖音',
+      niche: '',
+      stage: '已发布2条视频（启动期）',
+      desc: '抖音 IP 账号。原档案因浏览器本地存储按网址隔离丢失，此为重建框架，请在系统中补全人设/定位/内容支点等。',
+      createdAt: new Date().toISOString()
+    });
+    saveIPList(ipList);
+    localStorage.setItem('ccs_data_' + zyId, JSON.stringify({}));
+  }
   if (!getCurrentIPId() || !getIPList().find(ip => ip.id === getCurrentIPId())) {
     localStorage.setItem(CURRENT_IP_KEY, ipList[0].id);
   }
