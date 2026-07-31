@@ -9429,7 +9429,9 @@ async function renderSyncCard() {
     tagEl.textContent = '不支持'; tagEl.className = 'tag tag-gray';
     if (descEl) descEl.innerHTML = '当前浏览器不支持文件云同步（需 <strong>Chrome/Edge 桌面版</strong>）。可改用下方「全量备份/恢复」手动迁移，或把部署网址加入同一浏览器的书签。';
     if (connectBtn) connectBtn.style.display = 'none';
-    if (warnEl) { warnEl.style.display = 'block'; warnEl.textContent = '提示：Safari 不支持此同步 API，请改用 Chrome/Edge 桌面版。'; }
+    if (warnEl) { warnEl.style.display = 'block'; warnEl.style.background = 'var(--danger-light)'; warnEl.style.color = 'var(--danger)'; warnEl.style.border = '1px solid var(--danger)'; warnEl.style.fontWeight = '600'; warnEl.textContent = '⚠️ 当前浏览器（如 Safari）不支持云同步 API，数据仍只在本浏览器，换设备/清缓存会丢失。请改用 Chrome/Edge 桌面版连接同步，或定期用「全量备份」导出。'; }
+    const card = document.getElementById('dashboard-sync-card');
+    if (card) card.style.borderLeftColor = 'var(--danger)';
     return;
   }
   if (_syncHandle && _syncEnabled) {
@@ -9444,7 +9446,9 @@ async function renderSyncCard() {
     if (push) info += ' · 上传 ' + fmtSyncTime(push);
     if (pull) info += ' · 拉取 ' + fmtSyncTime(pull);
     if (detailEl) { detailEl.style.display = ''; detailEl.textContent = info; }
-    if (warnEl) { warnEl.style.display = 'block'; warnEl.textContent = '⚠️ 以云端文件为准，请避免两台机器同时编辑同一份数据（iCloud 同步有数秒延迟）。'; }
+    if (warnEl) { warnEl.style.display = 'block'; warnEl.style.background = 'var(--warning-light)'; warnEl.style.color = 'var(--warning)'; warnEl.style.border = '1px solid var(--warning)'; warnEl.style.fontWeight = '400'; warnEl.textContent = '⚠️ 以云端文件为准，请避免两台机器同时编辑同一份数据（iCloud 同步有数秒延迟）。'; }
+    const card = document.getElementById('dashboard-sync-card');
+    if (card) card.style.borderLeftColor = 'var(--primary)';
   } else if (_syncHandle && !_syncEnabled) {
     tagEl.textContent = '需重新授权'; tagEl.className = 'tag tag-orange';
     if (connectBtn) { connectBtn.style.display = ''; connectBtn.textContent = '🔓 重新授权'; }
@@ -9454,13 +9458,22 @@ async function renderSyncCard() {
     if (detailEl) { detailEl.style.display = ''; detailEl.textContent = '文件：' + (_syncHandle.name || '同步.json') + '（权限已失效，点击重新授权）'; }
     if (warnEl) warnEl.style.display = 'none';
   } else {
-    tagEl.textContent = '未连接'; tagEl.className = 'tag tag-blue';
+    tagEl.textContent = '未连接·有丢失风险'; tagEl.className = 'tag tag-red';
     if (connectBtn) { connectBtn.style.display = ''; connectBtn.textContent = '🔗 连接同步文件'; }
     if (uploadBtn) uploadBtn.style.display = 'none';
     if (downloadBtn) downloadBtn.style.display = 'none';
     if (disconnectBtn) disconnectBtn.style.display = 'none';
     if (detailEl) detailEl.style.display = 'none';
-    if (warnEl) warnEl.style.display = 'none';
+    if (warnEl) {
+      warnEl.style.display = 'block';
+      warnEl.style.background = 'var(--danger-light)';
+      warnEl.style.color = 'var(--danger)';
+      warnEl.style.border = '1px solid var(--danger)';
+      warnEl.style.fontWeight = '600';
+      warnEl.innerHTML = '⚠️ 当前数据只存在<strong>本浏览器本地</strong>，换网址 / 换浏览器 / 清缓存 / 无痕模式都会让它<strong>彻底丢失</strong>（之前郑燕档案就是这样没的）。点「连接同步文件」选 iCloud 里的文件，之后自动落盘，从此丢不了。';
+    }
+    const card = document.getElementById('dashboard-sync-card');
+    if (card) card.style.borderLeftColor = 'var(--danger)';
   }
 }
 
