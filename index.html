@@ -543,6 +543,17 @@ body {
 .ip-card-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); }
 .ip-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* ===== 定位问题记录 ===== */
+.pos-issue-item { border: 1px solid var(--border); border-left: 3px solid var(--warning); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: var(--bg-soft); }
+.pi-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.pi-status { font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 10px; }
+.pi-open { background: #fff3e0; color: #b26a00; }
+.pi-done { background: #e6f4ea; color: #1a7f37; }
+.pi-src { font-size: 11px; color: var(--text-muted); margin-left: auto; }
+.pi-problem { font-size: 14px; color: var(--text); margin: 2px 0 4px; }
+.pi-line { font-size: 13px; color: var(--text-secondary); margin: 2px 0; }
+.pi-actions { display: flex; gap: 6px; margin-top: 8px; }
+
 </style>
 </head>
 <body>
@@ -1207,6 +1218,43 @@ body {
       <div class="card" id="pos-pivot-card" style="border-left:4px solid var(--primary)">
         <div class="card-title">🪝 内容支点预览 <span class="tag tag-blue">定位的结晶</span><a href="#" onclick="navigateTo('pivot');return false" style="font-size:12px;color:var(--primary);float:right">去编辑支点 →</a></div>
         <div id="pos-pivot-body"></div>
+      </div>
+
+      <div class="card" id="pos-issue-card" style="border-left:4px solid var(--warning);">
+        <div class="card-title">📌 定位问题记录 <span class="tag tag-orange">待击穿 · 已分析</span>
+          <button class="btn btn-sm btn-gray" style="float:right;cursor:pointer;" onclick="seedPosIssues()">📥 从定位分析导入</button>
+        </div>
+        <div class="callout callout-warning">定位不是做完就定稿。把分析出的问题记在这里、逐个击穿，定位才会越来越准。每条可标记「待解决 / 已解决」。</div>
+        <div id="pos-issue-list"></div>
+        <div style="margin-top:14px;border-top:1px dashed var(--border);padding-top:14px;">
+          <div class="form-group">
+            <label class="form-label">维度</label>
+            <select class="form-select" id="pi-dimension">
+              <option value="用户画像">用户画像</option>
+              <option value="价值提炼">价值提炼</option>
+              <option value="人设战略">人设战略</option>
+              <option value="内容策略">内容策略</option>
+              <option value="专业壁垒">专业壁垒</option>
+              <option value="差异化">差异化/竞争</option>
+              <option value="商业化">商业化/变现</option>
+              <option value="表达风格">表达风格</option>
+              <option value="其他">其他</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">问题 <span class="hint">具体、可击穿</span></label>
+            <textarea class="form-textarea" id="pi-problem" placeholder="例：用户画像只写了'文艺青年'，缺具体痛点与使用场景"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">影响 <span class="hint">不解决会怎样</span></label>
+            <input class="form-input" id="pi-impact" placeholder="例：内容像对空气说话，无法判断选题是否打中人中">
+          </div>
+          <div class="form-group">
+            <label class="form-label">建议 <span class="hint">怎么击穿</span></label>
+            <input class="form-input" id="pi-suggestion" placeholder="例：补3类典型用户的一天切片 + 高频抱怨词">
+          </div>
+          <button class="btn btn-primary" onclick="addPosIssue()">＋ 添加问题</button>
+        </div>
       </div>
     </div>
 
@@ -4710,7 +4758,7 @@ function navigateTo(pageId) {
   window.scrollTo(0, 0);
   // 切换到IP详情页时刷新数据
   if (pageId === 'ipdetail') renderIPDetail();
-  if (pageId === 'positioning') renderPositioningPivot();
+  if (pageId === 'positioning') { renderPositioningPivot(); renderPosIssues(); }
   if (pageId === 'corpus') renderCorpus();
   if (pageId === 'interview') renderInterviews();
   if (pageId === 'topic') renderLoopCard();
@@ -4863,6 +4911,108 @@ function updatePositioningOutput() {
 情绪基调：${emoMap[data['per-emotion']] || '—'}
 思维习惯：${cogMap[data['per-cognitive']] || '—'}
   `;
+}
+
+// ========== 定位问题记录 ==========
+function renderPosIssues() {
+  const data = loadData();
+  // 首次进入且从未初始化过：自动从分析导入种子问题（只触发一次）
+  if (data['pos-issues'] === undefined) {
+    seedPosIssues(true);
+    renderPosIssues();
+    return;
+  }
+  const list = data['pos-issues'] || [];
+  const box = document.getElementById('pos-issue-list');
+  if (!box) return;
+  if (!list.length) {
+    box.innerHTML = '<div class="output-box empty">暂无定位问题记录。可点右上角「📥 从定位分析导入」，或在下方手动添加。</div>';
+    return;
+  }
+  box.innerHTML = list.map((it, i) => {
+    const done = it.status === 'done';
+    return `
+      <div class="pos-issue-item">
+        <div class="pi-head">
+          <span class="tag tag-orange">${esc(it.dimension) || '其他'}</span>
+          <span class="pi-status ${done ? 'pi-done' : 'pi-open'}">${done ? '✓ 已解决' : '○ 待解决'}</span>
+          ${it.source ? `<span class="pi-src">来源：${esc(it.source)}</span>` : ''}
+        </div>
+        <div class="pi-problem"><strong>问题：</strong>${esc(it.problem)}</div>
+        ${it.impact ? `<div class="pi-line"><strong>影响：</strong>${esc(it.impact)}</div>` : ''}
+        ${it.suggestion ? `<div class="pi-line"><strong>建议：</strong>${esc(it.suggestion)}</div>` : ''}
+        <div class="pi-actions">
+          <button class="btn btn-xs btn-gray" onclick="togglePosIssue(${i})">${done ? '标记待解决' : '标记已解决'}</button>
+          <button class="btn btn-xs btn-danger" onclick="deletePosIssue(${i})">删除</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function addPosIssue() {
+  const problem = document.getElementById('pi-problem').value.trim();
+  if (!problem) { showToast('请填写问题', 'error'); return; }
+  const data = loadData();
+  const arr = data['pos-issues'] || [];
+  arr.push({
+    dimension: document.getElementById('pi-dimension').value,
+    problem,
+    impact: document.getElementById('pi-impact').value.trim(),
+    suggestion: document.getElementById('pi-suggestion').value.trim(),
+    status: 'open',
+    source: '',
+    ts: Date.now()
+  });
+  saveData({ 'pos-issues': arr }, '定位问题已添加');
+  document.getElementById('pi-problem').value = '';
+  document.getElementById('pi-impact').value = '';
+  document.getElementById('pi-suggestion').value = '';
+  renderPosIssues();
+}
+
+function togglePosIssue(i) {
+  const data = loadData();
+  const arr = data['pos-issues'] || [];
+  if (!arr[i]) return;
+  arr[i].status = arr[i].status === 'done' ? 'open' : 'done';
+  saveData({ 'pos-issues': arr }, '状态已更新');
+  renderPosIssues();
+}
+
+function deletePosIssue(i) {
+  const data = loadData();
+  const arr = data['pos-issues'] || [];
+  arr.splice(i, 1);
+  saveData({ 'pos-issues': arr }, '已删除');
+  renderPosIssues();
+}
+
+// 从「定位1/2.docx 分析」导入定位问题（自动去重）
+function seedPosIssues(silent) {
+  const seeds = [
+    { dimension:'用户画像', problem:'用户画像仅描述为"20-40岁文艺青年"，是宽泛标签，缺具体痛点、聚集平台与使用场景', impact:'内容像对空气说话，无法判断选题是否真正打中人中', suggestion:'补3类典型用户的一天切片 + 高频抱怨词 + 常出没平台/话题' },
+    { dimension:'价值提炼', problem:'核心价值"觉察者/陪伴者/审美行者"是抽象名词，缺可落地的具体行为与内容映射', impact:'容易变成"正确的废话"，观众记不住、无法转化为关注理由', suggestion:'为每个特质配1个可被看见的行为符号（如"每周陪你喝一次安静的茶"）' },
+    { dimension:'人设战略', problem:'"性格缺陷→表达优势"框架被提出但未填具体内容，仍是空框架', impact:'人设无真实素材支撑，容易端着、不立体', suggestion:'把缺陷/身体特征各写1个真实故事，作为人设内容母题' },
+    { dimension:'内容策略', problem:'"正路径为主、合路径为辅"未定义何为"正/合"，策略不可执行', impact:'创作者拿到的是口号不是作战手册', suggestion:'明确定义正/合路径各对应哪类选题与人设动作，给判断清单' },
+    { dimension:'专业壁垒', problem:'定位1提出"石性×茶性""老板喝茶三细节"等护城河问题，但只提问题、未沉淀答案', impact:'定位有框架无证据，专业壁垒停在设问，无内容资产', suggestion:'把这些问题逐一作答，沉淀为"只你能说"的知识卡片库' },
+    { dimension:'差异化', problem:'强调"区别于包装出来的大师"，但无具体差异化锚点与竞品对照', impact:'差异化是姿态不是定位句，观众无记忆点', suggestion:'提炼一句"别人X，而我Y"的对照定位语' },
+    { dimension:'商业化', problem:'定位全程谈价值/审美，未出现任何变现路径（卖壶/课程/咨询/合作）', impact:'IP难以持续，内容与变现脱节，后期被迫硬广', suggestion:'在定位阶段就锁定1条主变现路径 + 内容如何自然导向它' },
+    { dimension:'表达风格', problem:'"说半句留半句"的留白风格与短视频完播率/前3秒留存存在张力，未给解法', impact:'艺术表达可能拖累算法表现，起号期更难冷启动', suggestion:'区分"钩子句"（说满、抓人）与"余韵句"（留白），前3秒用满、结尾留白' },
+    { dimension:'内容策略', problem:'示例选题《值得停五分钟的地方》《手艺人的手》与三大特质的映射关系被断言、未被演示', impact:'选题与定位脱节风险，容易跑偏成普通手艺号', suggestion:'为每个选题标注它服务哪个特质/哪个用户痛点' },
+    { dimension:'其他', problem:'定位2给出"关注收藏率/完播率做复盘"，但定位本身未预设可被数据验证的假设', impact:'复盘无标准，无法判断定位是否成立', suggestion:'给定位设2-3个可证伪假设（如"收藏率> X% 说明审美价值成立"）' },
+  ];
+  const data = loadData();
+  const arr = data['pos-issues'] || [];
+  const existing = new Set(arr.map(x => x.problem));
+  let added = 0;
+  seeds.forEach(s => {
+    if (!existing.has(s.problem)) {
+      arr.push(Object.assign({ status: 'open', source: '定位1/2.docx 分析', ts: Date.now() }, s));
+      added++;
+    }
+  });
+  saveData({ 'pos-issues': arr }, silent ? null : (added ? `已导入 ${added} 条定位问题` : '没有新增（可能已导入）'));
+  if (!silent) renderPosIssues();
 }
 
 // ========== 选题策划 ==========
@@ -8403,6 +8553,18 @@ function _renderPositionSection(data) {
   h += _kvTable([['价值主张',data['pos-value']],['目标用户',data['pos-user']],['人设',data['pos-persona']],['内容类型',typeMap[data['pos-type']]||data['pos-type']],['表达风格',data['pos-style']]]);
   h += '<h3>2. 人设七维度</h3>';
   h += _kvTable([['故事性',data['per-story']],['性格品行',data['per-character']],['与观众关系',relMap[data['per-relationship']]||data['per-relationship']],['三观',data['per-values']],['愿望渴望',data['per-desire']],['情绪基调',emoMap[data['per-emotion']]||data['per-emotion']],['思维习惯',cogMap[data['per-cognitive']]||data['per-cognitive']]]);
+  const issues = data['pos-issues'] || [];
+  if (issues.length) {
+    h += '<h3>3. 定位问题记录（待击穿）</h3><ol>';
+    h += issues.map(function(it){
+      return '<li><strong>[' + _esc(it.dimension || '其他') + '] ' + _esc(it.problem) + '</strong>'
+        + (it.impact ? '<br>影响：' + _esc(it.impact) : '')
+        + (it.suggestion ? '<br>建议：' + _esc(it.suggestion) : '')
+        + (it.status === 'done' ? ' <em>（已解决）</em>' : '')
+        + '</li>';
+    }).join('');
+    h += '</ol>';
+  }
   return _sectionWrap('二、定位与人设', h);
 }
 function _renderPivotSection(data) {
