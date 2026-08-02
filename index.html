@@ -10277,7 +10277,12 @@ function initVoiceInput() {
   rec.lang = 'zh-CN';
   rec.continuous = true;
   rec.interimResults = true;
-  let listening = false, target = null, toastTimer = null;
+  let listening = false, target = null, toastTimer = null, lastFocused = null;
+  function isTextEl(el) { return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.type !== 'number' && !el.readOnly; }
+  // 记录最后聚焦过的输入框：点麦克风按钮时按钮会抢走焦点，故不能只看点击瞬间的 activeElement
+  document.addEventListener('focusin', (e) => { if (isTextEl(e.target)) lastFocused = e.target; });
+  // 点击按钮时不抢焦点，保持文本框光标可见
+  fab.addEventListener('mousedown', (e) => e.preventDefault());
 
   function showToast(msg, ms) {
     if (!toast) return;
@@ -10319,10 +10324,11 @@ function initVoiceInput() {
 
   fab.addEventListener('click', () => {
     if (listening) { try { rec.stop(); } catch (x) {} return; }
-    const el = document.activeElement;
-    if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && !el.readOnly && el.type !== 'number') {
-      target = el;
-      target._voiceBase = el.value;
+    // 优先用当前焦点；若按钮抢走了焦点，则回落到最后聚焦过的输入框
+    const tgt = isTextEl(document.activeElement) ? document.activeElement : lastFocused;
+    if (tgt && isTextEl(tgt)) {
+      target = tgt;
+      target._voiceBase = tgt.value;
       try { rec.start(); } catch (x) {}
       showToast('🎙️ 正在聆听，请对「' + (target.placeholder || target.id || '输入框') + '」说话…（再点按钮停止）', 0);
     } else {
