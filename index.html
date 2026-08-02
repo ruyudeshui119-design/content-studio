@@ -10290,7 +10290,7 @@ function initVoiceInput() {
   const toast = document.getElementById('voiceToast');
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR || !fab) { if (fab) fab.hidden = true; return; }
-  let listening = false, target = null, toastTimer = null, lastFocused = null, rec = null, manualStop = false;
+  let listening = false, target = null, toastTimer = null, lastFocused = null, rec = null, manualStop = false, resultTimer = null;
   function isTextEl(el) { return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.type !== 'number' && !el.readOnly; }
   // 记录最后聚焦过的输入框：点麦克风按钮时按钮会抢走焦点，故不能只看点击瞬间的 activeElement
   document.addEventListener('focusin', (e) => { if (isTextEl(e.target)) lastFocused = e.target; });
@@ -10314,6 +10314,7 @@ function initVoiceInput() {
   // 停止：立即重置 UI 并丢弃识别实例，绕过 Chrome 连续识别 stop 后 onend 不触发的 bug
   function stopRec() {
     manualStop = true;
+    if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
     if (rec) { try { rec.stop(); } catch (x) {} }
     rec = null;
     resetUI();
@@ -10334,30 +10335,46 @@ function initVoiceInput() {
     rec.lang = 'zh-CN';
     rec.continuous = true;
     rec.interimResults = true;
-    rec.onstart = () => { listening = true; fab.classList.add('listening'); label.textContent = '停止聆听'; };
+    rec.onstart = () => {
+      listening = true;
+      fab.classList.add('listening');
+      label.textContent = '停止聆听';
+      if (resultTimer) clearTimeout(resultTimer);
+      resultTimer = setTimeout(() => {
+        if (listening && target) showToast('⏳ 仍在聆听，但还没收到文字。若长时间无文字，多为无法连接 Google 语音服务（国内常见，需代理/VPN 才能直连）。可在「设置·数据」改用国内语音识别。', 6000);
+      }, 10000);
+    };
     rec.onend = () => {
       resetUI();
       if (!manualStop && target) showToast('✅ 已停止，内容已写入「' + (target.placeholder || target.id || '输入框') + '」');
     };
     rec.onerror = (e) => {
+      console.warn('[语音识别] onerror:', e.error, e);
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed')
-        showToast('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试', 4200);
+        showToast('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试', 4600);
       else if (e.error === 'no-speech')
         showToast('没听到声音，请靠近麦克风再说一次', 2600);
+      else if (e.error === 'network' || e.error === 'network-disconnected')
+        showToast('⚠️ 无法连接语音识别服务（多为国内无法直连 Google 语音服务）。请开启代理/VPN 后重试；或在「设置·数据」改用国内语音识别。错误：network', 7000);
+      else if (e.error === 'aborted')
+        ; // 用户手动停止，忽略
       else
-        showToast('语音识别出错：' + e.error, 3200);
+        showToast('语音识别出错：' + (e.error || '未知'), 3600);
+      if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
       rec = null;
       resetUI();
     };
     rec.onresult = (e) => {
       if (!target) return;
+      if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
       let finalPart = '', interim = '';
       for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) finalPart += e.results[i][0].transcript;
-        else interim += e.results[i][0].transcript;
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalPart += t; else interim += t;
       }
       target.value = (target._voiceBase || '') + finalPart + interim;
       target.dispatchEvent(new Event('input', { bubbles: true }));
+      if (finalPart) target._voiceBase = (target._voiceBase || '') + finalPart; // 已确认部分固化，避免重复拼接
     };
     try { rec.start(); } catch (x) {}
     showToast('🎙️ 正在聆听，请对「' + (target.placeholder || target.id || '输入框') + '」说话…（再点按钮停止）', 0);
