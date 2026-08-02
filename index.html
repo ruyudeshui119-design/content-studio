@@ -10273,10 +10273,6 @@ function initVoiceInput() {
   const toast = document.getElementById('voiceToast');
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR || !fab) { if (fab) fab.hidden = true; return; }
-  const rec = new SR();
-  rec.lang = 'zh-CN';
-  rec.continuous = true;
-  rec.interimResults = true;
   let listening = false, target = null, toastTimer = null, lastFocused = null, rec = null, manualStop = false;
   function isTextEl(el) { return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.type !== 'number' && !el.readOnly; }
   // 记录最后聚焦过的输入框：点麦克风按钮时按钮会抢走焦点，故不能只看点击瞬间的 activeElement
