@@ -10367,14 +10367,15 @@ function initVoiceInput() {
     rec.onresult = (e) => {
       if (!target) return;
       if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
-      let finalPart = '', interim = '';
-      for (let i = 0; i < e.results.length; i++) {
+      // e.results 是累积的全部历史；e.resultIndex 起才是本次新增的，只处理增量，避免重复拼接
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
         const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) finalPart += t; else interim += t;
+        if (e.results[i].isFinal) target._voiceBase = (target._voiceBase || '') + t;
+        else interim += t;
       }
-      target.value = (target._voiceBase || '') + finalPart + interim;
+      target.value = (target._voiceBase || '') + interim;
       target.dispatchEvent(new Event('input', { bubbles: true }));
-      if (finalPart) target._voiceBase = (target._voiceBase || '') + finalPart; // 已确认部分固化，避免重复拼接
     };
     try { rec.start(); } catch (x) {}
     showToast('🎙️ 正在聆听，请对「' + (target.placeholder || target.id || '输入框') + '」说话…（再点按钮停止）', 0);
