@@ -543,6 +543,34 @@ body {
 .ip-card-stats { display: flex; gap: 12px; font-size: 12px; color: var(--text-muted); }
 .ip-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* 语音输入悬浮按钮 */
+.voice-fab {
+  position: fixed; right: 22px; bottom: 22px; z-index: 9999;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border: none; border-radius: 999px;
+  background: var(--primary); color: #fff; font-size: 14px; font-weight: 600;
+  cursor: pointer; box-shadow: 0 6px 22px rgba(0,0,0,.28); font-family: inherit;
+  transition: transform .15s, background .15s;
+}
+.voice-fab:hover { transform: translateY(-2px); }
+.voice-fab .mic-ico { font-size: 18px; }
+.voice-fab.listening { background: #e74c3c; animation: voicePulse 1.2s infinite; }
+@keyframes voicePulse {
+  0% { box-shadow: 0 0 0 0 rgba(231,76,60,.5); }
+  70% { box-shadow: 0 0 0 14px rgba(231,76,60,0); }
+  100% { box-shadow: 0 0 0 0 rgba(231,76,60,0); }
+}
+.voice-fab[hidden] { display: none; }
+.voice-toast {
+  position: fixed; right: 22px; bottom: 78px; z-index: 9999;
+  max-width: 300px; padding: 10px 14px; border-radius: 10px;
+  background: rgba(0,0,0,.82); color: #fff; font-size: 13px; line-height: 1.5;
+  font-family: inherit; box-shadow: 0 4px 16px rgba(0,0,0,.3);
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .2s, transform .2s;
+}
+.voice-toast.show { opacity: 1; transform: translateY(0); }
+
 
 </style>
 </head>
@@ -10238,12 +10266,85 @@ function persistDataKey(k, v) {
 })();
 
 // 启动：先初始化大容量存储层，再渲染界面
+/* ===== 语音输入（Web Speech API）===== */
+function initVoiceInput() {
+  const fab = document.getElementById('voiceFab');
+  const label = document.getElementById('voiceFabLabel');
+  const toast = document.getElementById('voiceToast');
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || !fab) { if (fab) fab.hidden = true; return; }
+  const rec = new SR();
+  rec.lang = 'zh-CN';
+  rec.continuous = true;
+  rec.interimResults = true;
+  let listening = false, target = null, toastTimer = null;
+
+  function showToast(msg, ms) {
+    if (!toast) return;
+    toast.textContent = msg;
+    toast.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    if (ms !== 0) toastTimer = setTimeout(() => toast.classList.remove('show'), ms || 2600);
+  }
+
+  rec.onstart = () => {
+    listening = true;
+    fab.classList.add('listening');
+    label.textContent = '停止聆听';
+  };
+  rec.onend = () => {
+    listening = false;
+    fab.classList.remove('listening');
+    label.textContent = '语音输入';
+    if (target) showToast('✅ 已停止，内容已写入「' + (target.placeholder || target.id || '输入框') + '」');
+  };
+  rec.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed')
+      showToast('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试', 4200);
+    else if (e.error === 'no-speech')
+      showToast('没听到声音，请靠近麦克风再说一次', 2600);
+    else
+      showToast('语音识别出错：' + e.error, 3200);
+    listening = false;
+    fab.classList.remove('listening');
+    label.textContent = '语音输入';
+  };
+  rec.onresult = (e) => {
+    if (!target) return;
+    let transcript = '';
+    for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
+    target.value = (target._voiceBase || '') + transcript;
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+
+  fab.addEventListener('click', () => {
+    if (listening) { try { rec.stop(); } catch (x) {} return; }
+    const el = document.activeElement;
+    if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && !el.readOnly && el.type !== 'number') {
+      target = el;
+      target._voiceBase = el.value;
+      try { rec.start(); } catch (x) {}
+      showToast('🎙️ 正在聆听，请对「' + (target.placeholder || target.id || '输入框') + '」说话…（再点按钮停止）', 0);
+    } else {
+      showToast('请先点进要语音输入的那个框，再点这个麦克风按钮', 3400);
+    }
+  });
+}
+
 async function boot() {
   if (await initDataDB()) { await loadAllDataFromDB(); USE_IDB = true; }
   init();
   try { await syncInit(); } catch (e) { console.error('syncInit', e); }
+  initVoiceInput();
 }
 boot();
 </script>
+
+<!-- 语音输入悬浮按钮 -->
+<button class="voice-fab" id="voiceFab" title="语音输入：点我开始聆听，再点停止。内容会写入当前光标所在的输入框">
+  <span class="mic-ico">🎤</span><span id="voiceFabLabel">语音输入</span>
+</button>
+<div class="voice-toast" id="voiceToast"></div>
+
 </body>
 </html>
