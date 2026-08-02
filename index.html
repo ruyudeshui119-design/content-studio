@@ -680,6 +680,12 @@ body {
           <div class="nav-item" data-page="aimind"><span class="nav-step">3</span><span class="nav-icon">🧠</span> AI运用心法</div>
         </div>
       </div>
+      <div class="nav-section">
+        <div class="nav-section-title" onclick="toggleNavSection(this)"><span class="ns-arrow">▾</span> ⚙️ 设置 · 数据与同步</div>
+        <div class="nav-section-items">
+          <div class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span> 设置 · 数据</div>
+        </div>
+      </div>
     </div>
     <div class="sidebar-footer">
       基于「安先生」短视频课程5.0版<br>构建于 2026.07
@@ -783,73 +789,6 @@ body {
         <div id="dashboard-todo-body"></div>
       </div>
 
-      <div class="card" id="dashboard-mobile-card" style="border-left:4px solid var(--primary);">
-        <div class="card-title">📱 手机使用说明 <span class="tag tag-purple">跨设备</span></div>
-        <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.85;">
-          <p style="margin:0 0 10px;"><strong>本系统已部署成网址，手机/电脑浏览器直接打开即用。</strong>建议把当前网址「添加到主屏幕」当 App 用：</p>
-          <ol style="margin:0 0 12px;padding-left:20px;">
-            <li style="margin-bottom:6px;"><strong>收藏网址</strong>：点下方「📋 复制本页网址」→ 在手机浏览器粘贴打开 → 浏览器菜单「添加到主屏幕」。</li>
-            <li style="margin-bottom:6px;"><strong>首次迁移数据</strong>：在旧设备打开<strong>本地那份 HTML</strong> → 进「🛡️ 全量数据备份」→ 点「💾 全量备份」下载 JSON → 在手机打开<strong>本网址</strong> → 进「🛡️ 全量数据备份」→ 点「📂 全量恢复」选该 JSON → 确认覆盖。</li>
-            <li style="margin-bottom:6px;"><strong>日常使用</strong>：之后以<strong>本网址为主系统</strong>（Mac / 手机都开它），数据自动保存在对应浏览器，无需重复迁移。</li>
-            <li style="margin-bottom:0;"><strong>换设备 / 重装</strong>：重复第 2 步「备份 → 恢复」即可把数据搬过去。</li>
-          </ol>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button class="btn btn-gray" onclick="copyPageUrl()">📋 复制本页网址</button>
-            <a class="btn btn-primary" href="javascript:void(0)" onclick="navigateTo('ipmanage');return false;">🛡️ 去备份/恢复</a>
-          </div>
-          <p style="margin:10px 0 0;font-size:12px;color:var(--text-muted);">提示：不同设备浏览器数据独立，跨设备务必用「全量备份 JSON」作为唯一数据通道。</p>
-        </div>
-      </div>
-
-      <div class="card" id="dashboard-backup-card" style="border-left:4px solid var(--warning);">
-        <div class="card-title">🛡️ 全量数据备份 / 恢复 <span class="tag tag-orange">首页直达</span></div>
-        <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:12px;">
-          一键备份<strong>所有IP</strong>的完整数据（选题库、脚本、复盘、策略等）为单个JSON文件；换设备时用「全量恢复」选该文件即可完整迁移。
-        </div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-success" onclick="exportAllData()">💾 全量备份所有IP数据</button>
-          <label class="btn btn-primary" style="cursor:pointer;">
-            📂 全量恢复
-            <input type="file" accept=".json" style="display:none;" onchange="importAllData(event)">
-          </label>
-          <button class="btn btn-gray" onclick="checkAutoBackup(true)">🔔 立即备份提醒</button>
-        </div>
-      </div>
-
-      <div class="card" id="dashboard-sync-card" style="border-left:4px solid var(--primary);">
-        <div class="card-title">☁️ 云同步（跨设备共用） <span class="tag tag-blue" id="sync-status-tag">未连接</span></div>
-        <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:12px;" id="sync-desc">
-          用浏览器原生文件能力 + iCloud 文件，让 Mac Mini 与 MacBook Air 共用同一份数据。首次在弹出的系统选择器里选 <strong>iCloud Drive</strong> 下的位置（建议新建「内容创作系统」文件夹）并授权，之后保存自动上传、打开自动拉取。<strong>需两台都用 Chrome/Edge 桌面版</strong>。
-        </div>
-        <div id="sync-detail" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;display:none;"></div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-primary" id="sync-connect-btn" onclick="syncConnect()">🔗 连接同步文件</button>
-          <button class="btn btn-success" id="sync-upload-btn" onclick="syncUpload(true)" style="display:none;">⬆️ 立即上传</button>
-          <button class="btn btn-gray" id="sync-download-btn" onclick="syncDownloadForce()" style="display:none;">⬇️ 拉取云端</button>
-          <button class="btn btn-gray" id="sync-disconnect-btn" onclick="syncDisconnect()" style="display:none;">✕ 断开</button>
-        </div>
-        <div id="sync-warn" style="display:none;margin-top:10px;padding:8px 12px;background:var(--warning-light);color:var(--warning);border-radius:8px;font-size:12.5px;"></div>
-      </div>
-
-      <div class="card" id="storage-usage-card" style="border-left:4px solid var(--info);">
-        <div class="card-title">💾 数据存储状态 <span class="tag tag-blue" id="storage-status-tag">正常</span></div>
-        <div id="storage-usage-content" style="font-size:14px;color:var(--text-secondary);line-height:1.8;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span>已用 / 浏览器配额</span>
-            <span id="storage-usage-text" style="font-weight:600;color:var(--text-primary);">计算中...</span>
-          </div>
-          <div style="background:var(--bg-secondary);border-radius:8px;height:12px;overflow:hidden;margin-bottom:8px;">
-            <div id="storage-usage-bar" style="height:100%;border-radius:8px;background:var(--success);width:0%;transition:width 0.5s;"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);">
-            <span id="storage-ip-count">0 个IP</span>
-            <span id="storage-last-backup">上次备份：从未</span>
-          </div>
-          <div id="storage-warning" style="display:none;margin-top:10px;padding:10px 14px;background:var(--danger-light);color:var(--danger);border-radius:8px;font-size:13px;font-weight:600;">
-            ⚠️ 存储空间即将用尽！请尽快导出备份并清理不用的IP数据。
-          </div>
-        </div>
-      </div>
 
       <div class="card">
         <div class="card-title">🚀 IP成长路线图 <span class="tag tag-blue">守正出奇</span></div>
@@ -929,7 +868,85 @@ body {
       </div>
     </div>
 
-    <!-- ====== 前采记录 ====== -->
+        <!-- ====== 设置 · 数据与同步 ====== -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <h1>⚙️ 设置 · 数据与同步</h1>
+        <div class="desc">数据备份、云同步、存储状态等系统设置 · 与创作流程分离，专注创作时无需关注</div>
+      </div>
+      <div class="callout callout-info" style="margin-bottom:20px;">
+        这里集中管理你的<strong>数据安全与跨设备同步</strong>。日常创作请回到「仪表盘」与各创作版块，无需操心这些底层设置。
+      </div>
+      <div class="card" id="dashboard-mobile-card" style="border-left:4px solid var(--primary);">
+        <div class="card-title">📱 手机使用说明 <span class="tag tag-purple">跨设备</span></div>
+        <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.85;">
+          <p style="margin:0 0 10px;"><strong>本系统已部署成网址，手机/电脑浏览器直接打开即用。</strong>建议把当前网址「添加到主屏幕」当 App 用：</p>
+          <ol style="margin:0 0 12px;padding-left:20px;">
+            <li style="margin-bottom:6px;"><strong>收藏网址</strong>：点下方「📋 复制本页网址」→ 在手机浏览器粘贴打开 → 浏览器菜单「添加到主屏幕」。</li>
+            <li style="margin-bottom:6px;"><strong>首次迁移数据</strong>：在旧设备打开<strong>本地那份 HTML</strong> → 进「🛡️ 全量数据备份」→ 点「💾 全量备份」下载 JSON → 在手机打开<strong>本网址</strong> → 进「🛡️ 全量数据备份」→ 点「📂 全量恢复」选该 JSON → 确认覆盖。</li>
+            <li style="margin-bottom:6px;"><strong>日常使用</strong>：之后以<strong>本网址为主系统</strong>（Mac / 手机都开它），数据自动保存在对应浏览器，无需重复迁移。</li>
+            <li style="margin-bottom:0;"><strong>换设备 / 重装</strong>：重复第 2 步「备份 → 恢复」即可把数据搬过去。</li>
+          </ol>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-gray" onclick="copyPageUrl()">📋 复制本页网址</button>
+            <a class="btn btn-primary" href="javascript:void(0)" onclick="navigateTo('ipmanage');return false;">🛡️ 去备份/恢复</a>
+          </div>
+          <p style="margin:10px 0 0;font-size:12px;color:var(--text-muted);">提示：不同设备浏览器数据独立，跨设备务必用「全量备份 JSON」作为唯一数据通道。</p>
+        </div>
+      </div>
+
+      <div class="card" id="dashboard-backup-card" style="border-left:4px solid var(--warning);">
+        <div class="card-title">🛡️ 全量数据备份 / 恢复 <span class="tag tag-orange">首页直达</span></div>
+        <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:12px;">
+          一键备份<strong>所有IP</strong>的完整数据（选题库、脚本、复盘、策略等）为单个JSON文件；换设备时用「全量恢复」选该文件即可完整迁移。
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-success" onclick="exportAllData()">💾 全量备份所有IP数据</button>
+          <label class="btn btn-primary" style="cursor:pointer;">
+            📂 全量恢复
+            <input type="file" accept=".json" style="display:none;" onchange="importAllData(event)">
+          </label>
+          <button class="btn btn-gray" onclick="checkAutoBackup(true)">🔔 立即备份提醒</button>
+        </div>
+      </div>
+
+      <div class="card" id="dashboard-sync-card" style="border-left:4px solid var(--primary);">
+        <div class="card-title">☁️ 云同步（跨设备共用） <span class="tag tag-blue" id="sync-status-tag">未连接</span></div>
+        <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:12px;" id="sync-desc">
+          用浏览器原生文件能力 + iCloud 文件，让 Mac Mini 与 MacBook Air 共用同一份数据。首次在弹出的系统选择器里选 <strong>iCloud Drive</strong> 下的位置（建议新建「内容创作系统」文件夹）并授权，之后保存自动上传、打开自动拉取。<strong>需两台都用 Chrome/Edge 桌面版</strong>。
+        </div>
+        <div id="sync-detail" style="font-size:12px;color:var(--text-muted);margin-bottom:10px;display:none;"></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button class="btn btn-primary" id="sync-connect-btn" onclick="syncConnect()">🔗 连接同步文件</button>
+          <button class="btn btn-success" id="sync-upload-btn" onclick="syncUpload(true)" style="display:none;">⬆️ 立即上传</button>
+          <button class="btn btn-gray" id="sync-download-btn" onclick="syncDownloadForce()" style="display:none;">⬇️ 拉取云端</button>
+          <button class="btn btn-gray" id="sync-disconnect-btn" onclick="syncDisconnect()" style="display:none;">✕ 断开</button>
+        </div>
+        <div id="sync-warn" style="display:none;margin-top:10px;padding:8px 12px;background:var(--warning-light);color:var(--warning);border-radius:8px;font-size:12.5px;"></div>
+      </div>
+
+      <div class="card" id="storage-usage-card" style="border-left:4px solid var(--info);">
+        <div class="card-title">💾 数据存储状态 <span class="tag tag-blue" id="storage-status-tag">正常</span></div>
+        <div id="storage-usage-content" style="font-size:14px;color:var(--text-secondary);line-height:1.8;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span>已用 / 浏览器配额</span>
+            <span id="storage-usage-text" style="font-weight:600;color:var(--text-primary);">计算中...</span>
+          </div>
+          <div style="background:var(--bg-secondary);border-radius:8px;height:12px;overflow:hidden;margin-bottom:8px;">
+            <div id="storage-usage-bar" style="height:100%;border-radius:8px;background:var(--success);width:0%;transition:width 0.5s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted);">
+            <span id="storage-ip-count">0 个IP</span>
+            <span id="storage-last-backup">上次备份：从未</span>
+          </div>
+          <div id="storage-warning" style="display:none;margin-top:10px;padding:10px 14px;background:var(--danger-light);color:var(--danger);border-radius:8px;font-size:13px;font-weight:600;">
+            ⚠️ 存储空间即将用尽！请尽快导出备份并清理不用的IP数据。
+          </div>
+        </div>
+      </div>
+    </div>
+
+<!-- ====== 前采记录 ====== -->
     <div class="page" id="page-preresearch">
       <div class="page-header">
         <h1>🔍 前采记录</h1>
