@@ -10277,7 +10277,7 @@ function initVoiceInput() {
   rec.lang = 'zh-CN';
   rec.continuous = true;
   rec.interimResults = true;
-  let listening = false, target = null, toastTimer = null, lastFocused = null;
+  let listening = false, target = null, toastTimer = null, lastFocused = null, rec = null, manualStop = false;
   function isTextEl(el) { return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.type !== 'number' && !el.readOnly; }
   // 记录最后聚焦过的输入框：点麦克风按钮时按钮会抢走焦点，故不能只看点击瞬间的 activeElement
   document.addEventListener('focusin', (e) => { if (isTextEl(e.target)) lastFocused = e.target; });
@@ -10292,48 +10292,66 @@ function initVoiceInput() {
     if (ms !== 0) toastTimer = setTimeout(() => toast.classList.remove('show'), ms || 2600);
   }
 
-  rec.onstart = () => {
-    listening = true;
-    fab.classList.add('listening');
-    label.textContent = '停止聆听';
-  };
-  rec.onend = () => {
+  function resetUI() {
     listening = false;
     fab.classList.remove('listening');
     label.textContent = '语音输入';
+  }
+
+  // 停止：立即重置 UI 并丢弃识别实例，绕过 Chrome 连续识别 stop 后 onend 不触发的 bug
+  function stopRec() {
+    manualStop = true;
+    if (rec) { try { rec.stop(); } catch (x) {} }
+    rec = null;
+    resetUI();
     if (target) showToast('✅ 已停止，内容已写入「' + (target.placeholder || target.id || '输入框') + '」');
-  };
-  rec.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed')
-      showToast('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试', 4200);
-    else if (e.error === 'no-speech')
-      showToast('没听到声音，请靠近麦克风再说一次', 2600);
-    else
-      showToast('语音识别出错：' + e.error, 3200);
-    listening = false;
-    fab.classList.remove('listening');
-    label.textContent = '语音输入';
-  };
-  rec.onresult = (e) => {
-    if (!target) return;
-    let transcript = '';
-    for (let i = 0; i < e.results.length; i++) transcript += e.results[i][0].transcript;
-    target.value = (target._voiceBase || '') + transcript;
-    target.dispatchEvent(new Event('input', { bubbles: true }));
-  };
+  }
+
+  // 启动：每次新建一个识别实例（单实例复用会触发无法停止的 bug）
+  function startRec() {
+    const tgt = isTextEl(document.activeElement) ? document.activeElement : lastFocused;
+    if (!tgt || !isTextEl(tgt)) {
+      showToast('请先点进要语音输入的那个框，再点这个麦克风按钮', 3400);
+      return;
+    }
+    target = tgt;
+    target._voiceBase = tgt.value;
+    manualStop = false;
+    rec = new SR();
+    rec.lang = 'zh-CN';
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onstart = () => { listening = true; fab.classList.add('listening'); label.textContent = '停止聆听'; };
+    rec.onend = () => {
+      resetUI();
+      if (!manualStop && target) showToast('✅ 已停止，内容已写入「' + (target.placeholder || target.id || '输入框') + '」');
+    };
+    rec.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed')
+        showToast('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试', 4200);
+      else if (e.error === 'no-speech')
+        showToast('没听到声音，请靠近麦克风再说一次', 2600);
+      else
+        showToast('语音识别出错：' + e.error, 3200);
+      rec = null;
+      resetUI();
+    };
+    rec.onresult = (e) => {
+      if (!target) return;
+      let finalPart = '', interim = '';
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalPart += e.results[i][0].transcript;
+        else interim += e.results[i][0].transcript;
+      }
+      target.value = (target._voiceBase || '') + finalPart + interim;
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    try { rec.start(); } catch (x) {}
+    showToast('🎙️ 正在聆听，请对「' + (target.placeholder || target.id || '输入框') + '」说话…（再点按钮停止）', 0);
+  }
 
   fab.addEventListener('click', () => {
-    if (listening) { try { rec.stop(); } catch (x) {} return; }
-    // 优先用当前焦点；若按钮抢走了焦点，则回落到最后聚焦过的输入框
-    const tgt = isTextEl(document.activeElement) ? document.activeElement : lastFocused;
-    if (tgt && isTextEl(tgt)) {
-      target = tgt;
-      target._voiceBase = tgt.value;
-      try { rec.start(); } catch (x) {}
-      showToast('🎙️ 正在聆听，请对「' + (target.placeholder || target.id || '输入框') + '」说话…（再点按钮停止）', 0);
-    } else {
-      showToast('请先点进要语音输入的那个框，再点这个麦克风按钮', 3400);
-    }
+    if (listening) stopRec(); else startRec();
   });
 }
 
