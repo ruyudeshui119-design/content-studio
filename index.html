@@ -944,6 +944,34 @@ body {
           </div>
         </div>
       </div>
+
+      <div class="card" id="xfyun-card" style="border-left:4px solid var(--success);">
+        <div class="card-title">🎙️ 语音识别（讯飞 · 国内直连免代理） <span class="tag tag-green" id="xfyun-status-tag">未配置</span></div>
+        <div style="font-size:13.5px;color:var(--text-secondary);line-height:1.8;margin-bottom:12px;">
+          配置讯飞开放平台密钥后，语音输入走讯飞服务器，<strong>国内网络免挂代理即可用</strong>。密钥仅存于你本机浏览器，不上传任何第三方。免费版每日有识别额度。
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px;">
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">APPID</label>
+            <input class="form-input" id="xfyun-appid" placeholder="讯飞控制台里的 APPID">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">APIKey</label>
+            <input class="form-input" id="xfyun-apikey" placeholder="APIKey">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label class="form-label">APISecret</label>
+            <input class="form-input" id="xfyun-apisecret" placeholder="APISecret">
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-primary" onclick="saveXfyunCfg()">💾 保存配置</button>
+          <button class="btn btn-gray" onclick="clearXfyunCfg()">✕ 清除</button>
+          <span id="xfyun-msg" style="font-size:12.5px;color:var(--text-muted);"></span>
+        </div>
+        <p style="margin:10px 0 0;font-size:12px;color:var(--text-muted);">申请：讯飞开放平台 → 创建应用（服务选「语音听写 iat」）→ 拿到 APPID / APIKey / APISecret。注：密钥会出现在本页浏览器代码里，<strong>个人自用可接受</strong>。</p>
+      </div>
+
     </div>
 
 <!-- ====== 前采记录 ====== -->
@@ -10283,106 +10311,229 @@ function persistDataKey(k, v) {
 })();
 
 // 启动：先初始化大容量存储层，再渲染界面
-/* ===== 语音输入（Web Speech API）===== */
-function initVoiceInput() {
-  const fab = document.getElementById('voiceFab');
-  const label = document.getElementById('voiceFabLabel');
-  const toast = document.getElementById('voiceToast');
+/* ===== 语音输入（Web Speech API + 讯飞 IAT 双通道）===== */
+// 语音 UI 共享状态：两个识别通道共用同一个悬浮按钮与文本框
+let _voice = { fab:null, label:null, toast:null, listening:false, target:null, toastTimer:null, lastFocused:null };
+
+function voiceShowToast(msg, ms) {
+  if (!_voice.toast) return;
+  _voice.toast.textContent = msg;
+  _voice.toast.classList.add('show');
+  if (_voice.toastTimer) clearTimeout(_voice.toastTimer);
+  if (ms !== 0) _voice.toastTimer = setTimeout(() => _voice.toast.classList.remove('show'), ms || 2600);
+}
+function voiceIsTextEl(el) { return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.type !== 'number' && !el.readOnly; }
+function voiceResetUI() {
+  _voice.listening = false;
+  if (_voice.fab) _voice.fab.classList.remove('listening');
+  if (_voice.label) _voice.label.textContent = '语音输入';
+}
+function voiceGetTarget() {
+  const t = voiceIsTextEl(document.activeElement) ? document.activeElement : _voice.lastFocused;
+  return (t && voiceIsTextEl(t)) ? t : null;
+}
+
+/* ---------- 通道一：Web Speech API（需代理/VPN 直连 Google） ---------- */
+let _wsRec = null, _wsResultTimer = null, _wsManualStop = false;
+function wsStart(tgt) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR || !fab) { if (fab) fab.hidden = true; return; }
-  let listening = false, target = null, toastTimer = null, lastFocused = null, rec = null, manualStop = false, resultTimer = null;
-  function isTextEl(el) { return !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && el.type !== 'number' && !el.readOnly; }
-  // 记录最后聚焦过的输入框：点麦克风按钮时按钮会抢走焦点，故不能只看点击瞬间的 activeElement
-  document.addEventListener('focusin', (e) => { if (isTextEl(e.target)) lastFocused = e.target; });
-  // 点击按钮时不抢焦点，保持文本框光标可见
-  fab.addEventListener('mousedown', (e) => e.preventDefault());
-
-  function showToast(msg, ms) {
-    if (!toast) return;
-    toast.textContent = msg;
-    toast.classList.add('show');
-    if (toastTimer) clearTimeout(toastTimer);
-    if (ms !== 0) toastTimer = setTimeout(() => toast.classList.remove('show'), ms || 2600);
-  }
-
-  function resetUI() {
-    listening = false;
-    fab.classList.remove('listening');
-    label.textContent = '语音输入';
-  }
-
-  // 停止：立即重置 UI 并丢弃识别实例，绕过 Chrome 连续识别 stop 后 onend 不触发的 bug
-  function stopRec() {
-    manualStop = true;
-    if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
-    if (rec) { try { rec.stop(); } catch (x) {} }
-    rec = null;
-    resetUI();
-    if (target) showToast('✅ 已停止，内容已写入「' + (target.placeholder || target.id || '输入框') + '」');
-  }
-
-  // 启动：每次新建一个识别实例（单实例复用会触发无法停止的 bug）
-  function startRec() {
-    const tgt = isTextEl(document.activeElement) ? document.activeElement : lastFocused;
-    if (!tgt || !isTextEl(tgt)) {
-      showToast('请先点进要语音输入的那个框，再点这个麦克风按钮', 3400);
-      return;
+  if (!SR) { voiceShowToast('当前浏览器不支持 Web Speech，请改用讯飞通道或换 Chrome', 3600); return; }
+  _voice.target = tgt;
+  tgt._voiceBase = tgt.value;
+  _wsManualStop = false;
+  _wsRec = new SR();
+  _wsRec.lang = 'zh-CN';
+  _wsRec.continuous = true;
+  _wsRec.interimResults = true;
+  _wsRec.onstart = () => {
+    _voice.listening = true;
+    _voice.fab.classList.add('listening');
+    _voice.label.textContent = '停止聆听';
+    if (_wsResultTimer) clearTimeout(_wsResultTimer);
+    _wsResultTimer = setTimeout(() => {
+      if (_voice.listening && _voice.target) voiceShowToast('⏳ 仍在聆听但还没收到文字。多为无法连接 Google 语音服务（国内需代理/VPN）。可在「设置·数据」改用讯飞（国内直连免代理）。', 6000);
+    }, 10000);
+  };
+  _wsRec.onend = () => {
+    voiceResetUI();
+    if (!_wsManualStop && _voice.target) voiceShowToast('✅ 已停止，内容已写入「' + (_voice.target.placeholder || _voice.target.id || '输入框') + '」');
+  };
+  _wsRec.onerror = (e) => {
+    console.warn('[语音识别 WS] onerror:', e.error, e);
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') voiceShowToast('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试', 4600);
+    else if (e.error === 'no-speech') voiceShowToast('没听到声音，请靠近麦克风再说一次', 2600);
+    else if (e.error === 'network' || e.error === 'network-disconnected') voiceShowToast('⚠️ 无法连接 Google 语音服务（国内需代理/VPN）。可在「设置·数据」改用讯飞。错误：network', 7000);
+    else if (e.error === 'aborted') ;
+    else voiceShowToast('语音识别出错：' + (e.error || '未知'), 3600);
+    if (_wsResultTimer) { clearTimeout(_wsResultTimer); _wsResultTimer = null; }
+    _wsRec = null;
+    voiceResetUI();
+  };
+  _wsRec.onresult = (e) => {
+    if (!_voice.target) return;
+    if (_wsResultTimer) { clearTimeout(_wsResultTimer); _wsResultTimer = null; }
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) _voice.target._voiceBase = (_voice.target._voiceBase || '') + t;
+      else interim += t;
     }
-    target = tgt;
-    target._voiceBase = tgt.value;
-    manualStop = false;
-    rec = new SR();
-    rec.lang = 'zh-CN';
-    rec.continuous = true;
-    rec.interimResults = true;
-    rec.onstart = () => {
-      listening = true;
-      fab.classList.add('listening');
-      label.textContent = '停止聆听';
-      if (resultTimer) clearTimeout(resultTimer);
-      resultTimer = setTimeout(() => {
-        if (listening && target) showToast('⏳ 仍在聆听，但还没收到文字。若长时间无文字，多为无法连接 Google 语音服务（国内常见，需代理/VPN 才能直连）。可在「设置·数据」改用国内语音识别。', 6000);
-      }, 10000);
-    };
-    rec.onend = () => {
-      resetUI();
-      if (!manualStop && target) showToast('✅ 已停止，内容已写入「' + (target.placeholder || target.id || '输入框') + '」');
-    };
-    rec.onerror = (e) => {
-      console.warn('[语音识别] onerror:', e.error, e);
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed')
-        showToast('⚠️ 麦克风权限被拒绝，请在浏览器地址栏允许麦克风后重试', 4600);
-      else if (e.error === 'no-speech')
-        showToast('没听到声音，请靠近麦克风再说一次', 2600);
-      else if (e.error === 'network' || e.error === 'network-disconnected')
-        showToast('⚠️ 无法连接语音识别服务（多为国内无法直连 Google 语音服务）。请开启代理/VPN 后重试；或在「设置·数据」改用国内语音识别。错误：network', 7000);
-      else if (e.error === 'aborted')
-        ; // 用户手动停止，忽略
-      else
-        showToast('语音识别出错：' + (e.error || '未知'), 3600);
-      if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
-      rec = null;
-      resetUI();
-    };
-    rec.onresult = (e) => {
-      if (!target) return;
-      if (resultTimer) { clearTimeout(resultTimer); resultTimer = null; }
-      // e.results 是累积的全部历史；e.resultIndex 起才是本次新增的，只处理增量，避免重复拼接
-      let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) target._voiceBase = (target._voiceBase || '') + t;
-        else interim += t;
-      }
-      target.value = (target._voiceBase || '') + interim;
-      target.dispatchEvent(new Event('input', { bubbles: true }));
-    };
-    try { rec.start(); } catch (x) {}
-    showToast('🎙️ 正在聆听，请对「' + (target.placeholder || target.id || '输入框') + '」说话…（再点按钮停止）', 0);
-  }
+    _voice.target.value = (_voice.target._voiceBase || '') + interim;
+    _voice.target.dispatchEvent(new Event('input', { bubbles: true }));
+  };
+  try { _wsRec.start(); } catch (x) {}
+  voiceShowToast('🎙️ 正在聆听（Web Speech），请对「' + (tgt.placeholder || tgt.id || '输入框') + '」说话…（再点按钮停止）', 0);
+}
+function wsStop() {
+  _wsManualStop = true;
+  if (_wsResultTimer) { clearTimeout(_wsResultTimer); _wsResultTimer = null; }
+  if (_wsRec) { try { _wsRec.stop(); } catch (x) {} }
+  _wsRec = null;
+  voiceResetUI();
+  if (_voice.target) voiceShowToast('✅ 已停止，内容已写入「' + (_voice.target.placeholder || _voice.target.id || '输入框') + '」');
+}
 
+/* ---------- 通道二：讯飞 IAT WebSocket（国内直连免代理） ---------- */
+function getXfyunCfg() {
+  try { const s = localStorage.getItem('ccs_xfyun_cfg'); return s ? JSON.parse(s) : null; } catch (e) { return null; }
+}
+function saveXfyunCfg() {
+  const a = document.getElementById('xfyun-appid'), k = document.getElementById('xfyun-apikey'), s = document.getElementById('xfyun-apisecret'), m = document.getElementById('xfyun-msg');
+  const appid = a && a.value.trim(), apikey = k && k.value.trim(), apisecret = s && s.value.trim();
+  if (!appid || !apikey || !apisecret) { if (m) { m.textContent = '⚠️ 三项都要填'; m.style.color = 'var(--danger)'; } return; }
+  localStorage.setItem('ccs_xfyun_cfg', JSON.stringify({ appid, apikey, apisecret }));
+  refreshXfyunStatus();
+  if (m) { m.textContent = '✅ 已保存（仅存本机）'; m.style.color = 'var(--success)'; }
+}
+function clearXfyunCfg() {
+  localStorage.removeItem('ccs_xfyun_cfg');
+  const a = document.getElementById('xfyun-appid'), k = document.getElementById('xfyun-apikey'), s = document.getElementById('xfyun-apisecret'), m = document.getElementById('xfyun-msg');
+  if (a) a.value = ''; if (k) k.value = ''; if (s) s.value = '';
+  refreshXfyunStatus();
+  if (m) { m.textContent = '已清除'; m.style.color = 'var(--text-muted)'; }
+}
+function refreshXfyunStatus() {
+  const cfg = getXfyunCfg(), tag = document.getElementById('xfyun-status-tag');
+  if (tag) { tag.textContent = cfg ? '已配置' : '未配置'; tag.className = 'tag ' + (cfg ? 'tag-green' : 'tag-gray'); }
+}
+function loadXfyunCfgToUI() {
+  const cfg = getXfyunCfg();
+  if (cfg) {
+    const a = document.getElementById('xfyun-appid'), k = document.getElementById('xfyun-apikey'), s = document.getElementById('xfyun-apisecret');
+    if (a) a.value = cfg.appid || ''; if (k) k.value = cfg.apikey || ''; if (s) s.value = cfg.apisecret || '';
+  }
+  refreshXfyunStatus();
+}
+function _floatTo16(float32) {
+  const out = new Int16Array(float32.length);
+  for (let i = 0; i < float32.length; i++) { let s = Math.max(-1, Math.min(1, float32[i])); out[i] = s < 0 ? s * 0x8000 : s * 0x7FFF; }
+  return out;
+}
+function _int16ToBase64(int16) {
+  const bytes = new Uint8Array(int16.buffer);
+  let bin = ''; const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  return btoa(bin);
+}
+async function _hmacSha256Base64(message, key) {
+  const enc = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey('raw', enc.encode(key), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', cryptoKey, enc.encode(message));
+  const bytes = new Uint8Array(sig); let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+let _xf = { ws:null, stream:null, audioCtx:null, processor:null, source:null, gain:null, running:false, base:'', interim:'' };
+function xfStart(tgt) {
+  const cfg = getXfyunCfg();
+  if (!cfg) { voiceShowToast('未配置讯飞密钥，请到「设置·数据」填写', 4200); return; }
+  _voice.target = tgt;
+  _xf.base = tgt.value || '';
+  _xf.interim = '';
+  const host = 'iat-api.xfyun.cn';
+  const date = new Date().toUTCString();
+  const signOrigin = 'host: ' + host + '\ndate: ' + date + '\nGET /v2/iat HTTP/1.1';
+  _hmacSha256Base64(signOrigin, cfg.apisecret).then((signature) => {
+    const authOrigin = 'api_key="' + cfg.apikey + '", algorithm="hmac-sha256", headers="host date request-line", signature="' + signature + '"';
+    const authorization = btoa(authOrigin);
+    const url = 'wss://' + host + '/v2/iat?authorization=' + encodeURIComponent(authorization) + '&date=' + encodeURIComponent(date) + '&host=' + host;
+    let ws;
+    try { ws = new WebSocket(url); } catch (e) { voiceShowToast('⚠️ 无法连接讯飞服务：' + e.message, 4000); return; }
+    _xf.ws = ws;
+    ws.onopen = () => {
+      _voice.listening = true;
+      _voice.fab.classList.add('listening');
+      _voice.label.textContent = '停止聆听';
+      voiceShowToast('🎙️ 正在聆听（讯飞），请说话…（再点按钮停止）', 0);
+      navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+        _xf.stream = stream;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        _xf.audioCtx = new AC({ sampleRate: 16000 });
+        _xf.source = _xf.audioCtx.createMediaStreamSource(stream);
+        _xf.processor = _xf.audioCtx.createScriptProcessor(4096, 1, 1);
+        _xf.gain = _xf.audioCtx.createGain(); _xf.gain.gain.value = 0;
+        _xf.processor.onaudioprocess = (ev) => {
+          if (!_xf.running || !ws || ws.readyState !== 1) return;
+          const pcm = _floatTo16(ev.inputBuffer.getChannelData(0));
+          const frame = { data: { status: 1, format: 'audio/L16;rate=16000', encoding: 'raw', audio: _int16ToBase64(pcm) } };
+          try { ws.send(JSON.stringify(frame)); } catch (e) {}
+        };
+        _xf.source.connect(_xf.processor);
+        _xf.processor.connect(_xf.gain);
+        _xf.gain.connect(_xf.audioCtx.destination);
+        _xf.running = true;
+        const first = { common: { app_id: cfg.appid }, business: { language: 'zh_cn', domain: 'iat', accent: 'mandarin', vad_eos: 3000 }, data: { status: 0, format: 'audio/L16;rate=16000', encoding: 'raw', audio: '' } };
+        try { ws.send(JSON.stringify(first)); } catch (e) {}
+      }).catch((err) => { voiceShowToast('⚠️ 无法获取麦克风：' + err.message, 4200); _xf.running = false; voiceResetUI(); });
+    };
+    ws.onmessage = (ev) => {
+      let data; try { data = JSON.parse(ev.data); } catch (e) { return; }
+      if (data.code !== 0) { voiceShowToast('⚠️ 讯飞识别错误：' + (data.message || data.code), 4500); xfStop(true); return; }
+      const result = data.data && data.data.result;
+      if (result && result.ws) {
+        let text = ''; for (let i = 0; i < result.ws.length; i++) text += result.ws[i].cw[0].w;
+        _xf.interim = text;
+        if (_voice.target) { _voice.target.value = _xf.base + _xf.interim; _voice.target.dispatchEvent(new Event('input', { bubbles: true })); }
+      }
+      if (data.data && data.data.status === 2) {
+        if (_xf.interim) _xf.base += _xf.interim; _xf.interim = '';
+        if (_voice.target) { _voice.target.value = _xf.base; _voice.target.dispatchEvent(new Event('input', { bubbles: true })); }
+        xfStop();
+      }
+    };
+    ws.onerror = () => { voiceShowToast('⚠️ 讯飞 WebSocket 错误', 3600); console.warn('[xfyun ws] error'); };
+    ws.onclose = () => { if (_xf.running) { _xf.running = false; voiceResetUI(); } };
+  }).catch((e) => { voiceShowToast('⚠️ 讯飞鉴权失败：' + e.message, 4000); });
+}
+function xfStop(silent) {
+  _xf.running = false;
+  if (_xf.ws && _xf.ws.readyState === 1) { try { _xf.ws.send(JSON.stringify({ data: { status: 2, format: 'audio/L16;rate=16000', encoding: 'raw', audio: '' } })); } catch (e) {} }
+  if (_xf.stream) { _xf.stream.getTracks().forEach(t => t.stop()); _xf.stream = null; }
+  if (_xf.processor) { try { _xf.processor.disconnect(); } catch (e) {} _xf.processor = null; }
+  if (_xf.gain) { try { _xf.gain.disconnect(); } catch (e) {} _xf.gain = null; }
+  if (_xf.source) { try { _xf.source.disconnect(); } catch (e) {} _xf.source = null; }
+  if (_xf.audioCtx) { try { _xf.audioCtx.close(); } catch (e) {} _xf.audioCtx = null; }
+  if (_xf.ws) { try { _xf.ws.close(); } catch (e) {} _xf.ws = null; }
+  voiceResetUI();
+  if (!silent && _voice.target) voiceShowToast('✅ 已停止，内容已写入「' + (_voice.target.placeholder || _voice.target.id || '输入框') + '」');
+}
+
+/* ---------- 调度入口 ---------- */
+function initVoiceInput() {
+  _voice.fab = document.getElementById('voiceFab');
+  _voice.label = document.getElementById('voiceFabLabel');
+  _voice.toast = document.getElementById('voiceToast');
+  const fab = _voice.fab;
+  if (!fab) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) fab.hidden = false; // 无 Web Speech 仍可走讯飞通道
+  document.addEventListener('focusin', (e) => { if (voiceIsTextEl(e.target)) _voice.lastFocused = e.target; });
+  fab.addEventListener('mousedown', (e) => e.preventDefault());
   fab.addEventListener('click', () => {
-    if (listening) stopRec(); else startRec();
+    if (_voice.listening) { if (getXfyunCfg()) xfStop(); else wsStop(); return; }
+    const tgt = voiceGetTarget();
+    if (!tgt) { voiceShowToast('请先点进要语音输入的那个框，再点这个麦克风按钮', 3400); return; }
+    if (getXfyunCfg()) xfStart(tgt); else wsStart(tgt);
   });
 }
 
@@ -10391,6 +10542,7 @@ async function boot() {
   init();
   try { await syncInit(); } catch (e) { console.error('syncInit', e); }
   initVoiceInput();
+  try { loadXfyunCfgToUI(); } catch (e) { console.error('loadXfyunCfgToUI', e); }
 }
 boot();
 </script>
