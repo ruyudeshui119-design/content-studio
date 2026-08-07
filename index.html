@@ -702,6 +702,14 @@ body {
       <button class="btn btn-sm btn-gray" onclick="dismissBackupBanner()">稍后</button>
     </div>
 
+    <!-- 云同步未连接·红色防丢横幅（每个页面顶部常驻，直到连接成功） -->
+    <div id="sync-warn-banner" style="display:none;align-items:center;gap:12px;padding:12px 20px;margin-bottom:16px;background:var(--danger-light,#ffebee);border:1px solid var(--danger,#e53935);border-radius:12px;">
+      <span style="font-size:20px;">☁️⚠️</span>
+      <span class="banner-msg" id="sync-warn-banner-msg" style="flex:1;font-size:14px;color:var(--danger,#e53935);font-weight:600;">数据未云同步，仅存本浏览器，换网址 / 换浏览器会丢失</span>
+      <button class="btn btn-sm btn-primary" onclick="syncConnect()">🔗 立即连接 iCloud</button>
+      <button class="btn btn-sm btn-gray" onclick="dismissSyncBanner()">✕</button>
+    </div>
+
     <!-- ====== 仪表盘 ====== -->
     <div class="page active" id="page-dashboard">
       <div class="page-header">
@@ -9304,6 +9312,7 @@ function importAllData(event) {
 let _syncHandle = null;       // FileSystemFileHandle
 let _syncEnabled = false;     // 是否已授权可读写
 let _syncTimer = null;        // 防抖定时器
+let _syncTimerNet = null;     // 安全网：定期全量上传定时器
 
 const SYNC_DB_NAME = 'ccs_sync_meta';
 const SYNC_STORE = 'meta';
@@ -9524,15 +9533,54 @@ async function renderSyncCard() {
     const card = document.getElementById('dashboard-sync-card');
     if (card) card.style.borderLeftColor = 'var(--danger)';
   }
+  updateSyncBanner();
 }
 
 async function syncInit() {
   await syncLoadHandle();
+  // 若已存 handle 但授权失效（重启浏览器常见），主动请求授权，避免静默停止同步
+  if (_syncHandle && !_syncEnabled) {
+    try {
+      const p = await _syncHandle.requestPermission({ mode: 'readwrite' });
+      if (p === 'granted') { _syncEnabled = true; await syncUpload(true); }
+    } catch (e) {}
+  }
   await renderSyncCard();
-  if (_syncHandle && _syncEnabled) {
+  updateSyncBanner();
+  if (_syncEnabled) {
     const r = await syncDownload({});
     if (r === 'updated') { setTimeout(() => location.reload(), 600); }
   }
+  // 安全网：已连接时每 45 秒全量上传一次，防止某次保存漏写
+  if (_syncTimerNet === null) {
+    _syncTimerNet = setInterval(() => { if (_syncEnabled && _syncHandle) syncUpload(false); }, 45000);
+  }
+}
+
+// 顶部红色防丢横幅：只要未处于「已连接·自动同步」就常驻显示
+function updateSyncBanner() {
+  const b = document.getElementById('sync-warn-banner');
+  if (!b) return;
+  const msg = document.getElementById('sync-warn-banner-msg');
+  if (!syncSupported()) {
+    b.style.display = 'flex';
+    msg.innerHTML = '⚠️ 当前浏览器不支持云同步（需 Chrome/Edge 桌面版），数据仅在本浏览器，请改用「全量备份」定期导出';
+    return;
+  }
+  if (_syncEnabled && _syncHandle) {
+    b.style.display = 'none';
+  } else if (_syncHandle && !_syncEnabled) {
+    b.style.display = 'flex';
+    msg.textContent = '云同步授权已失效，数据仅在本浏览器，点「立即连接」重新授权即可恢复自动同步';
+  } else {
+    b.style.display = 'flex';
+    msg.textContent = '数据未云同步，仅存本浏览器，换网址 / 换浏览器 / 清缓存都会丢失，点「立即连接 iCloud」';
+  }
+}
+
+function dismissSyncBanner() {
+  const b = document.getElementById('sync-warn-banner');
+  if (b) b.style.display = 'none';
 }
 
 function checkAutoBackup(force) {
