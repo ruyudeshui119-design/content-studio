@@ -613,12 +613,11 @@ body {
         <div class="nav-section-items">
           <div class="nav-item" data-page="positioning"><span class="nav-step">1</span><span class="nav-icon">🎯</span> 定位与人设</div>
           <div class="nav-item" data-page="preresearch"><span class="nav-step">2</span><span class="nav-icon">🔍</span> 前采记录</div>
-          <div class="nav-item" data-page="interview"><span class="nav-step">3</span><span class="nav-icon">💬</span> IP访谈/谈话记录</div>
-          <div class="nav-item" data-page="pivot"><span class="nav-step">4</span><span class="nav-icon">⚓</span> 内容支点</div>
-          <div class="nav-item" data-page="values"><span class="nav-step">5</span><span class="nav-icon">💎</span> 价值观体系</div>
-          <div class="nav-item" data-page="strategy"><span class="nav-step">6</span><span class="nav-icon">🏪</span> 账号战略</div>
-          <div class="nav-item" data-page="platform"><span class="nav-step">7</span><span class="nav-icon">📱</span> 平台策略</div>
-          <div class="nav-item" data-page="monetize"><span class="nav-step">8</span><span class="nav-icon">💰</span> 变现规划</div>
+          <div class="nav-item" data-page="pivot"><span class="nav-step">3</span><span class="nav-icon">⚓</span> 内容支点</div>
+          <div class="nav-item" data-page="values"><span class="nav-step">4</span><span class="nav-icon">💎</span> 价值观体系</div>
+          <div class="nav-item" data-page="strategy"><span class="nav-step">5</span><span class="nav-icon">🏪</span> 账号战略</div>
+          <div class="nav-item" data-page="platform"><span class="nav-step">6</span><span class="nav-icon">📱</span> 平台策略</div>
+          <div class="nav-item" data-page="monetize"><span class="nav-step">7</span><span class="nav-icon">💰</span> 变现规划</div>
         </div>
       </div>
       <div class="nav-section">
@@ -1065,7 +1064,7 @@ body {
           </div>
         </div>
 
-        <button class="btn btn-purple" onclick="generatePreFromTalks()" title="读取「IP访谈」里已上传的谈话，自动聚合成下方字段">📥 从谈话记录生成前采</button>
+        <button class="btn btn-purple" onclick="generatePreFromTalks()" title="读取「IP语料库」里已上传的谈话，自动聚合成下方字段">📥 从谈话记录生成前采</button>
         <button class="btn btn-primary" onclick="savePreresearch()">保存前采资料</button>
         <button class="btn btn-gray" onclick="extractPreresearch()">✨ 智能提炼（生成定位 + 选题）</button>
       </div>
@@ -1096,36 +1095,8 @@ body {
       </div>
 
       <div class="card" id="pr-result" style="display:none">
-        <div class="card-title">第二步：提炼结果（可编辑后同步） <span class="tag tag-purple">AI 草稿</span></div>
-
-        <div class="grid grid-2">
-          <div class="form-group">
-            <label class="form-label">① 核心价值（← 货·核心问题）</label>
-            <input class="form-input" id="pr-pos-value">
-          </div>
-          <div class="form-group">
-            <label class="form-label">② 目标用户（← 场·用户画像）</label>
-            <input class="form-input" id="pr-pos-user">
-          </div>
-        </div>
-        <div class="grid grid-2">
-          <div class="form-group">
-            <label class="form-label">③ 人设形象（← 人·背景+性格）</label>
-            <input class="form-input" id="pr-pos-persona">
-          </div>
-          <div class="form-group">
-            <label class="form-label">④ 内容类型（建议，可在定位页微调）</label>
-            <select class="form-select" id="pr-pos-type">
-              <option value="telling">🗣️ 讲述型（口播/旁白）</option>
-              <option value="showing">📹 呈现型（镜头叙事）</option>
-              <option value="mixed">🔀 混合型</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">⑤ 视觉风格（← 人·表达口吻）</label>
-          <input class="form-input" id="pr-pos-style">
-        </div>
+        <div class="card-title">第二步：提炼结果（选题方向） <span class="tag tag-purple">AI 草稿</span></div>
+        <div class="callout callout-info">定位五要素不再重复存放于此——点下方「🪄 生成定位」会根据上方「人 / 货 / 场 / 钱」直接写入「定位与人设」（唯一编辑入口）。这里只沉淀选题方向草稿。</div>
 
         <div class="callout callout-warning">以下选题为按前采生成的草稿，可逐行修改 / 增删，再一键同步到选题库。</div>
         <div class="form-group">
@@ -1141,7 +1112,7 @@ body {
           <textarea class="form-textarea" id="pr-topic-3"></textarea>
         </div>
 
-        <button class="btn btn-primary" onclick="syncPreToPositioning()">⬆️ 同步定位到「定位与人设」</button>
+        <button class="btn btn-primary" onclick="applyPositioningFromPre()">🪄 根据前采生成定位五要素（写入「定位与人设」）</button>
         <button class="btn btn-gray" onclick="syncPreToTopics()">⬆️ 同步选题到「选题库管理」</button>
       </div>
     </div>
@@ -3738,16 +3709,16 @@ body {
       </div>
     </div>
 
-    <!-- ====== IP访谈/谈话记录 ====== -->
-    <div class="page" id="page-interview">
+    <!-- ====== IP语料库 ====== -->
+    <div class="page" id="page-corpus">
       <div class="page-header">
-        <h1>💬 IP访谈/谈话记录</h1>
-        <div class="desc">把跟 IP 的对话粘贴/上传进来，自动拆解成语料，一键提炼成观点/案例/金句/痛点，沉淀为该 IP 的真实素材，直接驱动选题与脚本创作。</div>
+        <h1>🗄️ IP语料库</h1>
+        <div class="desc">原始谈话 + 前采 + 定位 + 素材库 的统一语料中心：先在这里录入/导入真实对话，沉淀为「谈话语料库」，再一键聚合成「AI语料包」喂给任意AI，或预填到脚本/选题生成器，让初稿就带这个人设。</div>
       </div>
 
-      <!-- 批量导入 -->
+      <!-- 原始谈话录入（原独立的「访谈/谈话记录」模块并入，统一归入「IP语料库」） -->
       <div class="card">
-        <div class="card-title">📥 批量导入谈话 <span class="tag tag-blue">粘贴或上传</span></div>
+        <div class="card-title">第一步：原始谈话录入 <span class="tag tag-blue">粘贴 / 上传 / 标记</span></div>
         <div class="callout callout-info">
           <strong>格式</strong>：每行用「说话人：内容」标识，如 <code>我：…</code> / <code>IP：…</code>。无标识段落按下方「默认角色」归入。微信/备忘录导出的聊天记录整段粘贴即可自动识别。
         </div>
@@ -3771,7 +3742,6 @@ body {
         </div>
       </div>
 
-      <!-- 手动添加 -->
       <div class="card">
         <div class="card-title">✍️ 手动添加一条</div>
         <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;">
@@ -3803,7 +3773,6 @@ body {
         </div>
       </div>
 
-      <!-- 一键提炼 -->
       <div class="card">
         <div class="card-title">🏷️ 一键智能标记 <span class="tag tag-orange">对IP说的话按规则打类型</span></div>
         <div class="callout callout-warning">
@@ -3812,28 +3781,19 @@ body {
         <button class="btn btn-primary btn-sm" onclick="autoTagInterviews()">🏷️ 一键智能标记</button>
       </div>
 
-      <!-- 列表 -->
       <div class="card">
         <div class="card-title">📜 谈话语料库 <span class="tag tag-blue" id="iv-count" style="font-size:11px;">0条</span></div>
         <div id="iv-list"></div>
       </div>
-    </div>
-
-    <!-- ====== IP语料库 ====== -->
-    <div class="page" id="page-corpus">
-      <div class="page-header">
-        <h1>🗄️ IP语料库</h1>
-        <div class="desc">把前采 + 定位 + 素材库聚合成你的专属语料，一键生成「AI语料包」喂给任意AI，或直接预填到脚本/选题生成器，让初稿就带这个人设。</div>
-      </div>
 
       <div class="card">
-        <div class="card-title">第一步：IP语料全景 <span class="tag tag-blue">人 · 货 · 场 · 钱 · 定位 · 素材</span></div>
-        <div class="callout callout-info">以下内容实时聚合自「前采记录」「定位与人设」「灵感素材库」「选题库」，按当前 IP 隔离。</div>
+        <div class="card-title">第二步：IP语料全景 <span class="tag tag-blue">人 · 货 · 场 · 钱 · 定位 · 素材 · 谈话</span></div>
+        <div class="callout callout-info">以下内容实时聚合自「前采记录」「定位与人设」「灵感素材库」「选题库」「谈话语料库」，按当前 IP 隔离。</div>
         <div class="corpus-grid" id="corpus-panorama"></div>
       </div>
 
       <div class="card">
-        <div class="card-title">第二步：生成 AI 语料包 <span class="tag tag-purple">可复制喂给任意AI</span></div>
+        <div class="card-title">第三步：生成 AI 语料包 <span class="tag tag-purple">可复制喂给任意AI</span></div>
         <div class="callout callout-warning">把下面这段语料包复制给元宝 / 豆包 / GPT 等任意AI，它就能以你这个IP的身份、口吻、素材来生成选题、脚本、文案，风格高度统一。</div>
         <button class="btn btn-primary" onclick="generateCorpusPack()">✨ 一键生成语料包</button>
         <button class="btn btn-gray" onclick="copyCorpusPack()" id="corpus-copy-btn" style="display:none">📋 复制到剪贴板</button>
@@ -3841,7 +3801,7 @@ body {
       </div>
 
       <div class="card">
-        <div class="card-title">第三步：一键预填生成器 <span class="tag tag-green">初稿即带人设</span></div>
+        <div class="card-title">第四步：一键预填生成器 <span class="tag tag-green">初稿即带人设</span></div>
         <div class="callout callout-info">点击下方按钮，系统会把定位 + 前采 + 素材自动填入「选题策划」的需求/解决方案库，以及「脚本创作」的精准/陌生/普世/刺点字段，让你打开生成器时已有贴合该IP的初稿。</div>
         <button class="btn btn-success" onclick="prefillGenerators()">⬇️ 预填到「选题策划」与「脚本创作」</button>
       </div>
@@ -4786,8 +4746,7 @@ function navigateTo(pageId) {
   // 切换到IP详情页时刷新数据
   if (pageId === 'ipdetail') renderIPDetail();
   if (pageId === 'positioning') { renderPositioningPivot(); }
-  if (pageId === 'corpus') renderCorpus();
-  if (pageId === 'interview') renderInterviews();
+  if (pageId === 'corpus') { renderCorpus(); renderInterviews(); }
   if (pageId === 'topic') renderLoopCard();
   if (pageId === 'script') { renderScriptLoopHint(); renderScriptPivot(); }
   if (pageId === 'vreview') renderVReviews();
@@ -4892,6 +4851,24 @@ function savePositioning() {
   saveData(data, '定位信息已保存');
   updatePositioningOutput();
   updateDashboard();
+}
+
+// 旧数据迁移：把前采页遗留的 pr-pos-* 定位副本合并进「定位与人设」唯一入口 pos-*（仅当定位尚未填写时）
+function migratePreToPositioning(data) {
+  if (!data || typeof data !== 'object') return;
+  const posFilled = (data['pos-value'] || data['pos-user'] || data['pos-persona'] || data['pos-style'] || '').trim();
+  if (posFilled) return; // 定位已填，不覆盖用户成果
+  const src = ['pr-pos-value', 'pr-pos-user', 'pr-pos-persona', 'pr-pos-style', 'pr-pos-type'];
+  const hasOld = src.some(k => (data[k] || '').trim());
+  if (!hasOld) return;
+  if (!data['pos-value']) data['pos-value'] = (data['pr-pos-value'] || '').trim();
+  if (!data['pos-user']) data['pos-user'] = (data['pr-pos-user'] || '').trim();
+  if (!data['pos-persona']) data['pos-persona'] = (data['pr-pos-persona'] || '').trim();
+  if (!data['pos-style']) data['pos-style'] = (data['pr-pos-style'] || '').trim();
+  if (!data['pos-type'] && data['pr-pos-type']) data['pos-type'] = data['pr-pos-type'];
+  // 去重后删除旧副本，避免重复展示
+  src.forEach(k => delete data[k]);
+  saveData(data, '');
 }
 
 function savePersona() {
@@ -7063,7 +7040,7 @@ function renderInspirations() {
   }).join('');
 }
 
-// ========== IP访谈/谈话记录 ==========
+// ========== IP语料库（原始谈话录入） ==========
 const IV_TYPES = ['', '观点', '案例', '金句', '痛点', '故事', '口头禅'];
 
 function getTalks() {
@@ -8463,7 +8440,6 @@ function _renderPreSection(data) {
     'pr-person-bg':'身份背景','pr-person-skill':'专业技能','pr-person-char':'性格特质','pr-person-tone':'表达口吻','pr-person-pain':'个人痛点',
     'pr-goods-problem':'核心问题 / 货','pr-goods-resource':'影像 / 货资源','pr-scene-audience':'目标用户 / 场','pr-scene-pains':'用户痛点 / 场','pr-scene-competitor':'竞争对手 / 场','pr-scene-gap':'对标缝隙 / 场','pr-scene-platform':'主阵地平台 / 场',
     'pr-money-monetize':'变现方式','pr-money-price':'客单价 / 价格',
-    'pr-pos-value':'前采提炼·价值','pr-pos-user':'前采提炼·用户','pr-pos-persona':'前采提炼·人设','pr-pos-style':'前采提炼·风格',
     'pr-topic-1':'选题方向草稿①','pr-topic-2':'选题方向草稿②','pr-topic-3':'选题方向草稿③'
   };
   const rows = Object.keys(labels).map(function(k){ return [labels[k], data[k]]; });
@@ -9601,7 +9577,7 @@ function doBackupNow() {
 }
 
 // ========== 前采记录 ==========
-const PR_FIELDS = ['pr-person-bg','pr-person-skill','pr-person-char','pr-person-tone','pr-person-pain','pr-goods-problem','pr-goods-resource','pr-scene-audience','pr-scene-pains','pr-scene-competitor','pr-scene-gap','pr-scene-platform','pr-money-monetize','pr-money-price','pr-pos-value','pr-pos-user','pr-pos-persona','pr-pos-style','pr-topic-1','pr-topic-2','pr-topic-3'];
+const PR_FIELDS = ['pr-person-bg','pr-person-skill','pr-person-char','pr-person-tone','pr-person-pain','pr-goods-problem','pr-goods-resource','pr-scene-audience','pr-scene-pains','pr-scene-competitor','pr-scene-gap','pr-scene-platform','pr-money-monetize','pr-money-price','pr-topic-1','pr-topic-2','pr-topic-3'];
 
 function savePreresearch() {
   const data = {};
@@ -9625,20 +9601,7 @@ function extractPreresearch() {
     return;
   }
 
-  // —— 定位五要素 ——
-  document.getElementById('pr-pos-value').value = goodsProblem;
-  document.getElementById('pr-pos-user').value = sceneAudience;
-  document.getElementById('pr-pos-persona').value = [personBg, personChar].filter(Boolean).join('，');
-  document.getElementById('pr-pos-style').value = personTone;
-  // 内容类型推断
-  const typeSel = document.getElementById('pr-pos-type');
-  if (typeSel) {
-    const txt = (scenePlatform + personTone + personSkill).toLowerCase();
-    let t = 'mixed';
-    if (txt.includes('口播') || txt.includes('直播') || txt.includes('讲述') || txt.includes('讲解')) t = 'telling';
-    else if (txt.includes('vlog') || txt.includes('呈现') || txt.includes('剧情') || txt.includes('镜头') || txt.includes('探店')) t = 'showing';
-    typeSel.value = t;
-  }
+  // —— 选题方向（定位五要素不再在此重复，由 applyPositioningFromPre 直接写入「定位与人设」）——
 
   // —— 选题方向 ——
   const pains = scenePains.split(/\r?\n/).map(s => s.replace(/^\s*\d+[.、)）]\s*/, '').trim()).filter(Boolean).slice(0, 3);
@@ -9679,26 +9642,39 @@ function extractPreresearch() {
   const block = document.getElementById('pr-result');
   block.style.display = 'block';
   block.scrollIntoView({ behavior: 'smooth' });
-  showToast('已基于前采提炼出定位与选题草稿，请检查后同步', 'success');
+  showToast('已基于前采提炼出选题方向草稿，定位请点「🪄 生成定位」写入「定位与人设」', 'success');
 }
 
-// 同步定位到「定位与人设」
-function syncPreToPositioning() {
+// 根据前采「人/货/场/钱」一键生成定位五要素，直接写入「定位与人设」（去重后唯一入口）
+function applyPositioningFromPre() {
   const g = id => (document.getElementById(id)?.value || '').trim();
-  const pv = g('pr-pos-value'), pu = g('pr-pos-user'), pp = g('pr-pos-persona'), ps = g('pr-pos-style');
-  if (!pv && !pu && !pp && !ps) { showToast('请先点「智能提炼」生成定位', 'error'); return; }
-  document.getElementById('pos-value').value = pv;
-  document.getElementById('pos-user').value = pu;
-  document.getElementById('pos-persona').value = pp;
-  document.getElementById('pos-style').value = ps;
-  const t = document.getElementById('pr-pos-type')?.value;
-  if (t) {
-    document.querySelectorAll('#pos-type .toggle').forEach(el => el.classList.remove('active'));
-    const tg = document.querySelector(`#pos-type .toggle[data-value="${t}"]`);
-    if (tg) tg.classList.add('active');
+  const personBg = g('pr-person-bg'), personSkill = g('pr-person-skill'), personChar = g('pr-person-char');
+  const personTone = g('pr-person-tone');
+  const goodsProblem = g('pr-goods-problem'), goodsResource = g('pr-goods-resource');
+  const sceneAudience = g('pr-scene-audience'), scenePains = g('pr-scene-pains');
+  const sceneCompetitor = g('pr-scene-competitor'), sceneGap = g('pr-scene-gap');
+  const scenePlatform = g('pr-scene-platform');
+
+  if (!goodsProblem && !sceneAudience && !personBg) {
+    showToast('请先填写前采资料（至少填「核心问题 / 目标用户 / 身份背景」之一），或在上方点「智能提炼」', 'error');
+    return;
   }
+
+  document.getElementById('pos-value').value = goodsProblem;
+  document.getElementById('pos-user').value = sceneAudience;
+  document.getElementById('pos-persona').value = [personBg, personChar].filter(Boolean).join('，');
+  document.getElementById('pos-style').value = personTone;
+  // 内容类型推断
+  const txt = (scenePlatform + personTone + personSkill).toLowerCase();
+  let t = 'mixed';
+  if (txt.includes('口播') || txt.includes('直播') || txt.includes('讲述') || txt.includes('讲解')) t = 'telling';
+  else if (txt.includes('vlog') || txt.includes('呈现') || txt.includes('剧情') || txt.includes('镜头') || txt.includes('探店')) t = 'showing';
+  document.querySelectorAll('#pos-type .toggle').forEach(el => el.classList.remove('active'));
+  const tg = document.querySelector(`#pos-type .toggle[data-value="${t}"]`);
+  if (tg) tg.classList.add('active');
+
   savePositioning();
-  showToast('已同步到「定位与人设」', 'success');
+  showToast('已根据前采生成定位五要素并写入「定位与人设」', 'success');
 }
 
 // 同步选题到「选题库管理」
@@ -9723,18 +9699,19 @@ function syncPreToTopics() {
   showToast(`已同步 ${added} 条选题到「选题库」`, 'success');
 }
 
-// 初始化前采结果区显隐
+// 初始化前采结果区显隐（按选题方向草稿是否存在）
 function renderPreresearch() {
-  const has = (document.getElementById('pr-pos-value')?.value || '').trim();
   const block = document.getElementById('pr-result');
-  if (block) block.style.display = has ? 'block' : 'none';
+  if (!block) return;
+  const has = (document.getElementById('pr-topic-1')?.value || '').trim();
+  block.style.display = has ? 'block' : 'none';
 }
 
-// 从「IP访谈/谈话记录」聚合生成前采字段（人/货/场/钱）
+// 从「IP语料库」聚合生成前采字段（人/货/场/钱）
 // 读取当前IP已上传并解析的谈话，按类型+关键词聚合成前采录入字段，免去手动搬运
 function generatePreFromTalks() {
   const talks = getTalks ? getTalks() : (loadData().talks || []);
-  if (!talks.length) { showToast('没有谈话记录，请先到「IP访谈」上传并解析', 'error'); return; }
+  if (!talks.length) { showToast('没有谈话记录，请先到「IP语料库」上传并解析', 'error'); return; }
   const ipTalks = talks.filter(t => t.role === 'ip');
   if (!ipTalks.length) {
     showToast('谈话记录里没有「IP说的话」（可能都标成了"我"），无法提取', 'error');
@@ -9830,7 +9807,7 @@ function copyPageUrl() {
 // 组装「AI提取前采」提示词：把当前IP的谈话整理成结构化提取指令
 function buildExtractionPrompt() {
   const talks = getTalks ? getTalks() : (loadData().talks || []);
-  if (!talks.length) { showToast('没有谈话记录，请先到「IP访谈」上传并解析', 'error'); return; }
+  if (!talks.length) { showToast('没有谈话记录，请先到「IP语料库」上传并解析', 'error'); return; }
   const lines = talks.map(t => (t.role === 'ip' ? 'IP（被访人）' : '访员') + '：' + t.content).join('\n');
   const schema = `请严格按以下格式输出（每行"字段：内容"；最焦虑三件事用编号列表）：
 职业身份背景：
@@ -9937,7 +9914,7 @@ function importAIExtraction() {
 // 导出当前IP的访谈文本为 .txt（给 Claude Code / 外部 AI 读取）
 function exportTalks() {
   const talks = (typeof getTalks === 'function') ? getTalks() : (loadData().talks || []);
-  if (!talks.length) { showToast('没有谈话记录，请先到「IP访谈」上传并解析', 'error'); return; }
+  if (!talks.length) { showToast('没有谈话记录，请先到「IP语料库」上传并解析', 'error'); return; }
   const lines = talks.map(t => (t.role === 'ip' ? 'IP（被访人）' : '访员') + '：' + t.content).join('\n');
   const blob = new Blob([lines], { type: 'text/plain;charset=utf-8' });
   const a = document.createElement('a');
@@ -10059,7 +10036,7 @@ function generateCorpusPack() {
   L.push('—— 谈话语料（IP原话/案例/金句） ——');
   const ipTalksAll = c.talks.filter(t => t.role === 'ip');
   if (ipTalksAll.length) ipTalksAll.slice(0, 15).forEach((t, idx) => L.push((idx + 1) + '. ' + (t.type ? '【' + t.type + '】' : '') + t.content));
-  else L.push('（暂无，可在「IP访谈/谈话记录」页粘贴对话导入）');
+  else L.push('（暂无，可在「IP语料库」页粘贴对话导入）');
   L.push('');
   L.push('—— 选题方向参考 ——');
   if (c.topics.length) c.topics.slice(0, 12).forEach((t, idx) => L.push((idx + 1) + '. ' + t.title));
@@ -10196,6 +10173,7 @@ function init() {
 
   // 加载已保存数据到表单
   const data = loadData();
+  migratePreToPositioning(data); // 旧 pr-pos-* 定位副本并入 pos-*
   Object.keys(data).forEach(key => {
     if (typeof data[key] === 'string') {
       const el = document.getElementById(key);
